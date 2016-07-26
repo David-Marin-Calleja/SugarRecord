@@ -23,6 +23,7 @@ class ReactiveStorageTests: QuickSpec {
             it("should execute the operation notifying when completed") {
                 storage?.rac_operation({ (context, save) -> Void in
                     let _: Issue = try! context.create()
+                    save()
                 })
                 .startWithCompleted({ () -> () in
                     let count = try! storage?.mainContext.request(Issue.self).fetch().count
@@ -35,6 +36,7 @@ class ReactiveStorageTests: QuickSpec {
             it("should execute the operation notifying when completed") {
                 _ = storage?.rx_operation({ (context, save) -> Void in
                     let _: Issue = try! context.create()
+                    save()
                 }).subscribeCompleted({ () -> Void in
                     let count = try! storage?.mainContext.request(Issue.self).fetch().count
                     expect(count) == 1
@@ -47,6 +49,7 @@ class ReactiveStorageTests: QuickSpec {
                 waitUntil(action: { (done) -> Void in
                     storage?.rac_backgroundOperation({ (context, save) -> Void in
                         let _: Issue = try! context.create()
+                        save()
                     })
                     .startWithCompleted({ () -> () in
                         let count = try! storage?.mainContext.request(Issue.self).fetch().count
@@ -62,6 +65,7 @@ class ReactiveStorageTests: QuickSpec {
                 waitUntil(action: { (done) -> Void in
                     _ = storage?.rx_backgroundOperation({ (context, save) -> Void in
                         let _: Issue = try! context.create()
+                        save()
                     }).subscribeCompleted({ () -> Void in
                         let count = try! storage?.mainContext.request(Issue.self).fetch().count
                         expect(count) == 1
@@ -71,9 +75,27 @@ class ReactiveStorageTests: QuickSpec {
             }
         }
         
+        describe("rx_backgroundOperation") { 
+            it("should produce the object from the inner block", closure: { 
+                waitUntil(action: { (done) -> Void in
+                    _ = storage?.rx_backgroundOperation({ (context, save) -> String in
+                        let issue: Issue = try! context.create()
+                        issue.name = "testName"
+                        save()
+                        return issue.name
+                    }).subscribeNext({ (stringProduced) in
+                        expect(stringProduced) == "testName"
+                        done()
+                    })
+                    
+                })
+                
+            })
+        }
+        
         describe("rac_fetch") {
             it("should execute the fetch and return the results") {
-                storage?.operation({ (context, save) -> Void in
+                _ = try? storage?.operation({ (context, save) -> Void in
                     let _: Issue = try! context.create()
                     save()
                 })
@@ -85,7 +107,7 @@ class ReactiveStorageTests: QuickSpec {
         
         describe("rac_backgroundFetch") {
             it("should execute the fetch mapping the returned objects") {
-                storage?.operation({ (context, save) -> Void in
+                _ = try? storage?.operation({ (context, save) -> Void in
                     let issue: Issue = try! context.create()
                     issue.name = "olakase"
                     save()
@@ -102,7 +124,7 @@ class ReactiveStorageTests: QuickSpec {
         
         describe("rx_backgroundFetch") {
             it("should execute the fetch mapping the returned objects") {
-                storage?.operation({ (context, save) -> Void in
+                _ = try? storage?.operation({ (context, save) -> Void in
                     let issue: Issue = try! context.create()
                     issue.name = "olakase"
                     save()

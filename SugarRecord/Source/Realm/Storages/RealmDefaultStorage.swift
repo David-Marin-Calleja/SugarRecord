@@ -1,7 +1,6 @@
 import Foundation
 import RealmSwift
 
-/// Default Realm storage. In this case the structure is much simpler (compared with CoreData) contexts are represented by Realm instances in the thread where they are requested.
 public class RealmDefaultStorage: Storage {
     
     // MARK: - Attributes
@@ -11,84 +10,87 @@ public class RealmDefaultStorage: Storage {
     
     ///  MARK: - Init
     
-    public init(configuration: Realm.Configuration? = nil) {
+    public convenience init(configuration: Realm.Configuration? = nil) {
+        self.init(configuration: configuration, versionController: VersionController())
+    }
+    
+    internal init(configuration: Realm.Configuration? = nil, versionController: VersionController) {
         self.configuration = configuration
+        versionController.check()
     }
     
     
-    // MARK: - Storage conformance
+    // MARK: - Storage
     
-    /// Storage description. This description property is defined in the CustomStringLiteralConvertible protocol
-    public var description: String {
-        get {
-            return "RealmDefaultStorage"
-        }
-    }
+    public var description: String { return "RealmDefaultStorage" }
     
-    /// Storage type
-    public var type: StorageType {
-        get {
-            return .Realm
-        }
-    }
+    public var type: StorageType { return .Realm }
     
-    /// Main context. This context is mostly used for querying operations.
-    /// Note: Use this context with the main thread only
     public var mainContext: Context! {
-        get {
-            if let configuration = self.configuration {
-                return try? Realm(configuration: configuration)
-            }
-            else {
-                return try? Realm()
-            }
+        if let configuration = self.configuration {
+            return try? Realm(configuration: configuration)
+        }
+        else {
+            return try? Realm()
         }
     }
     
-    /// Save context. This context is mostly used for save operations
     public var saveContext: Context! {
-        get {
-            if let configuration = self.configuration {
-                return try? Realm(configuration: configuration)
-            }
-            else {
-                return try? Realm()
-            }
+        if let configuration = self.configuration {
+            return try? Realm(configuration: configuration)
+        }
+        else {
+            return try? Realm()
         }
     }
     
-    /// Memory context. This context is mostly used for testing (not persisted)
     public var memoryContext: Context! {
-        get {
-            return try? Realm(configuration: Realm.Configuration(inMemoryIdentifier: "MemoryRealm"))
-        }
+        return try? Realm(configuration: Realm.Configuration(inMemoryIdentifier: "MemoryRealm"))
     }
     
-    /**
-     It removes the store. If you use this method the CoreData make sure you initialize everything again before starting using CoreData again
-     
-     - throws: NSError returned by NSFileManager when the removal operation fails
-     */
     public func removeStore() throws {
-        try NSFileManager.defaultManager().removeItemAtPath(Realm().path)
+        if let url = try Realm().configuration.fileURL {
+            try NSFileManager.defaultManager().removeItemAtURL(url)
+        }
     }
 
-    /**
-     Executes the provided operation.
-     
-     - parameter operation: Operation to be executed.
-     */
-    public func operation(operation: (context: Context, save: () -> Void) -> Void) {
+    public func operation<T>(operation: (context: Context, save: () -> Void) throws -> T) throws -> T {
         let context: Realm = self.saveContext as! Realm
         context.beginWrite()
         var save: Bool = false
-        operation(context: context, save: { save = true })
-        if save {
-            _ = try? context.commitWrite()
+        var _error: ErrorType!
+        
+        var returnedObject: T!
+        do {
+            returnedObject = try operation(context: context, save: { () -> Void in
+                defer {
+                    save = true
+                }
+                do {
+                    try context.commitWrite()
+                }
+                catch {
+                    context.cancelWrite()
+                    _error = error
+                }
+            })
         }
-        else {
+        catch {
+            _error = error
+        }
+        if !save {
             context.cancelWrite()
         }
+        if let error = _error {
+            throw error
+        }
+        
+        return returnedObject
+
+    }
+    
+    public func observable<T: Object>(request: Request<T>) -> RequestObservable<T> {
+        return RealmObservable(request: request, realm: self.mainContext as! Realm)
     }
     
 }

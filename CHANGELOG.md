@@ -1,3 +1,13 @@
+### Version 2.2.7
+- Add Observable feature https://github.com/pepibumur/SugarRecord/pull/243
+- Fix a CoreDataStorage `journal_mode` property not set properly.
+
+### Version 2.2.5
+- Updated Carthage Quick/Nimble dependencies
+
+### Version 2.2.4
+- Improve error throwing in operations https://github.com/pepibumur/SugarRecord/issues/222
+
 ### Version 2.1.6
 - Implemented example project.
 - Fixed a bug with the CoreDataDefaultStorage that didn't persist the changes.

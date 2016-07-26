@@ -39,6 +39,10 @@ class CoreDataBasicView: UIViewController, UITableViewDelegate, UITableViewDataS
         fatalError("init(coder:) has not been implemented")
     }
     
+    deinit {
+        print("🚀🚀🚀 Deallocating \(self) 🚀🚀🚀")
+    }
+    
     
     // MARK: - Lifecycle
     
@@ -62,7 +66,7 @@ class CoreDataBasicView: UIViewController, UITableViewDelegate, UITableViewDataS
     }
     
     private func setupNavigationItem() {
-        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Add, target: self, action: "userDidSelectAdd:")
+        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Add, target: self, action: #selector(CoreDataBasicView.userDidSelectAdd(_:)))
     }
     
     private func setupTableView() {
@@ -92,7 +96,7 @@ class CoreDataBasicView: UIViewController, UITableViewDelegate, UITableViewDataS
     func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
         if editingStyle == UITableViewCellEditingStyle.Delete {
             let name = entities[indexPath.row].name
-            db.operation({ (context, save) -> Void in
+            try! db.operation({ (context, save) -> Void in
                 guard let obj = try! context.request(BasicObject.self).filteredWith("name", equalTo: name).fetch().first else { return }
                 _ = try? context.remove(obj)
                 save()
@@ -105,7 +109,7 @@ class CoreDataBasicView: UIViewController, UITableViewDelegate, UITableViewDataS
     // MARK: - Actions
     
     func userDidSelectAdd(sender: AnyObject!) {
-        db.operation { (context, save) -> Void in
+        try! db.operation { (context, save) -> Void in
             let _object: BasicObject = try! context.new()
             _object.date = NSDate()
             _object.name = randomStringWithLength(10) as String
@@ -120,31 +124,5 @@ class CoreDataBasicView: UIViewController, UITableViewDelegate, UITableViewDataS
     
     private func updateData() {
         self.entities = try! db.fetch(Request<BasicObject>()).map(CoreDataBasicEntity.init)
-    }
-}
-
-class BasicObject: NSManagedObject {
-    
-    // Insert code here to add functionality to your managed object subclass
-    
-}
-
-extension BasicObject {
-    
-    @NSManaged var date: NSDate?
-    @NSManaged var name: String?
-    
-}
-
-
-class CoreDataBasicEntity {
-    let dateString: String
-    let name: String
-    init(object: BasicObject) {
-        let dateFormater = NSDateFormatter()
-        dateFormater.timeStyle = NSDateFormatterStyle.ShortStyle
-        dateFormater.dateStyle = NSDateFormatterStyle.ShortStyle
-        self.dateString = dateFormater.stringFromDate(object.date!)
-        self.name = object.name!
     }
 }

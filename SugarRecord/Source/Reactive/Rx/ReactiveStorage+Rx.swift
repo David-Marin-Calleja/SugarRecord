@@ -1,52 +1,69 @@
 import Foundation
 import RxSwift
 
-public extension ReactiveStorage where Self: Storage {
+public extension Storage {
 
-    /**
-     Executes the given operation.
-     
-     - parameter operation: Operation to be executed. Context must be used to save your changes in and the save() closure must be called in order to get the changes persisted in the storage.
-     
-     - returns: Observable that executes the action.
-     */
-    func rx_operation(op: (context: Context, save: Saver) -> Void) -> Observable<Void> {
-        return Observable.create({ (observer) -> RxSwift.Disposable in
-            self.operation({ (context, saver) -> Void in
-                op(context: context, save: saver)
+    func rx_operation<T>(op: (context: Context, save: () -> Void) throws -> T) -> Observable<T> {
+        return Observable.create { (observer) -> Disposable in
+            do {
+                let returnedObject = try self.operation { (context, saver) throws -> T in
+                    try op(context: context, save: { () -> Void in
+                        saver()
+                    })
+                }
+                
+                observer.onNext(returnedObject)
                 observer.onCompleted()
-            })
-            return NopDisposable.instance
-        })
-    }
-    
-    /**
-     Executes the given operation in a background thread.
-     
-     - parameter operation: Operation to be executed. Context must be used to save your changes in and the save() closure must be called in order to get the changes persisted in the storage.
-     
-     - returns: Observable that executes the action.
-     */
-    func rx_backgroundOperation(op: (context: Context, save: Saver) -> Void) -> Observable<Void> {
-        return Observable.create { (observer) -> RxSwift.Disposable in
-            self.operation { (context, saver) in
-                op(context: context, save: saver)
-                observer.onCompleted()
+            }
+            catch {
+                observer.onError(error)
             }
             return NopDisposable.instance
         }
     }
     
-    /**
-     Executes a background fetch mapping the response into a PONSO thread safe entity.
-     
-     - parameter request: Request to be executed.
-     - parameter mapper:  Mapper.
-     
-     - returns: Observable that executes the action.
-     */
+    func rx_operation<T>(op: (context: Context) throws -> T) -> Observable<T> {
+        return rx_operation { (context, save) in
+            
+            let returnedObject = try op(context: context)
+            save()
+            
+            return returnedObject
+        }
+    }
+    
+    func rx_backgroundOperation<T>(op: (context: Context, save: () -> Void) throws -> T) -> Observable<T> {
+        return Observable.create { (observer) -> Disposable in
+            do {
+                let returnedObject = try self.operation { (context, saver) throws -> T in
+                    try op(context: context, save: { () -> Void in
+                        saver()
+                    })
+                }
+                
+                observer.onNext(returnedObject)
+                observer.onCompleted()
+
+            }
+            catch {
+                observer.onError(error)
+            }
+            return NopDisposable.instance
+        }
+    }
+    
+    func rx_backgroundOperation<T>(op: (context: Context) throws -> T) -> Observable<T> {
+        return rx_backgroundOperation { (context, save) throws in
+            
+            let returnedObject = try op(context: context)
+            save()
+            
+            return returnedObject
+        }
+    }
+    
     func rx_backgroundFetch<T, U>(request: Request<T>, mapper: T -> U) -> Observable<[U]> {
-        let observable: Observable<[T]> = Observable.create({ (observer) -> RxSwift.Disposable in
+        let observable: Observable<[T]> = Observable.create { (observer) -> Disposable in
             let priority = DISPATCH_QUEUE_PRIORITY_DEFAULT
             dispatch_async(dispatch_get_global_queue(priority, 0)) {
                 do {
@@ -65,19 +82,14 @@ public extension ReactiveStorage where Self: Storage {
                 }
             }
             return NopDisposable.instance
-        })
-        return observable.map({$0.map(mapper)}).observeOn(MainScheduler.instance)
+        }
+        return observable
+            .map { $0.map(mapper) }
+            .observeOn(MainScheduler.instance)
     }
 
-    /**
-     Executes a request.
-     
-     - parameter request: Request to be executed.
-     
-     - returns: Observable that executes the action.
-     */
     func rx_fetch<T>(request: Request<T>) -> Observable<[T]> {
-        return Observable.create({ (observer) -> RxSwift.Disposable in
+        return Observable.create { (observer) -> Disposable in
             do {
                 try observer.onNext(self.fetch(request))
                 observer.onCompleted()
@@ -92,7 +104,7 @@ public extension ReactiveStorage where Self: Storage {
                 }
             }
             return NopDisposable.instance
-        })
+        }
     }
     
 }

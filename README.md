@@ -7,7 +7,8 @@
 [![Language: Swift](https://img.shields.io/badge/license-MIT-lightgrey.svg?style=flat)](http://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/pepibumur/SugarRecord.svg)](https://travis-ci.org/pepibumur/SugarRecord)
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg?style=flat)](https://github.com/Carthage/Carthage)
-[![codecov.io](https://codecov.io/github/pepibumur/SugarRecord/coverage.svg?branch=master)](https://codecov.io/github/pepibumur/SugarRecord?branch=master)
+[![Slack Status](http://sugar-record.herokuapp.com/badge.svg)](http://sugar-record.herokuapp.com/)
+
 
 **If you want to receive updates about the status of SugarRecord, you can subscribe to our mailing list [here](http://eepurl.com/57tqX)**
 
@@ -17,7 +18,7 @@ SugarRecord is a persistence wrapper designed to make working with persistence s
 The library is maintained by [@pepibumur](https://github.com/pepibumur). You can reach me at [pepibumur@gmail.com](mailto://pepibumur@gmail.com) for help or whatever you need to commend about the library.
 
 ## Features
-- Swift 2.1 compatible (Xcode 7.1).
+- Swift 2.3 compatible (Xcode 7.3).
 - Fully rewritten from the version 1.0.
 - Reactive API (using ReactiveCocoa).
 - Protocols based design.
@@ -50,7 +51,7 @@ pod "SugarRecord/CoreData+RX"
 pod "SugarRecord/CoreData+RX+iCloud"
 pod "SugarRecord/CoreData+RAC"
 pod "SugarRecord/CoreData+RAC+iCloud"
-pod "SugarRecord/Ream"
+pod "SugarRecord/Realm"
 pod "SugarRecord/Realm+RX"
 pod "SugarRecord/Realm+RAC"
 ```
@@ -63,7 +64,7 @@ pod "SugarRecord/Realm+RAC"
 6. Link your target with **CoreData** library *(from Build Phases)*
 
 #### Notes
-- Carthage integration includes both, CoreData and Carthage. We're planning to separate it in multiple frameworks. [Task](https://trello.com/c/hyhN1Tp2/11-create-separated-frameworks-for-foundation-coredata-and-realm)
+- Carthage integration includes both, CoreData and Realm. We're planning to separate it in multiple frameworks. [Task](https://trello.com/c/hyhN1Tp2/11-create-separated-frameworks-for-foundation-coredata-and-realm)
 - SugarRecord 2.0 is not compatible with the 1.x interface. If you were using that version you'll have to update your project to support this version.
 
 ## Reference
@@ -108,7 +109,7 @@ func icloudStorage() -> CoreDataiCloudStorage {
 Storages offer multiple kind of contexts that are the entry points to the database. For curious developers, in case of CoreData a context is a wrapper around `NSManagedObjectContext`, in case of Realm a wrapper around `Realm`. The available contexts are:
 
 - **MainContext:** Use it for main thread operations, for example fetches whose data will be presented in the UI.
-- **SaveContext:** Use this context for background operations, the property `saveContext` of the storage is a computed property so every time you call it you get a new fresh context to be used.
+- **SaveContext:** Use this context for background operations. The context is initialized when the storage instance is created. That context is used for storage operations.
 - **MemoryContext:** Use this context when you want to do some tests and you don't want your changes to be persisted.
 
 #### Fetching data
@@ -129,9 +130,14 @@ Although `Context`s offer `insertion` and `deletion` methods that you can use it
 - **Save**: All the changes you apply to that context are in a memory state unless you call the `save()` method. That method will persist the changes to your store and propagate them across all the available contexts.
 
 ```swift
-db.operation { (context, save) -> Void in
-  // Do your operations here
-  save()
+do {
+  db.operation { (context, save) throws -> Void in
+    // Do your operations here
+    save()
+  }
+}
+catch {
+  // There was an error in the operation
 }
 ```
 
@@ -139,11 +145,16 @@ db.operation { (context, save) -> Void in
 You can use the context `new()` method to initialize a model **without inserting it in the context**:
 
 ```swift
-db.operation { (context, save) -> Void in
-  let newTask: Track = try! context.new()
-  newTask.name = "Make CoreData easier!"
-  try! context.insert(newTask)
-  save()
+do {
+  db.operation { (context, save) throws -> Void in
+    let newTask: Track = try! context.new()
+    newTask.name = "Make CoreData easier!"
+    try! context.insert(newTask)
+    save()
+  }
+}
+catch {
+  // There was an error in the operation
 }
 ```
 > In order to insert the model into the context you use the insert() method.
@@ -152,10 +163,15 @@ db.operation { (context, save) -> Void in
 You can use the `create()` for initializing and inserting in the context in the same operation:
 
 ```swift
-db.operation { (context, save) -> Void in
-  let newTask: Track = try! context.create()
-  newTask.name = "Make CoreData easier!"
-  save()
+do {
+  db.operation { (context, save) throws -> Void in
+    let newTask: Track = try! context.create()
+    newTask.name = "Make CoreData easier!"
+    save()
+  }
+}
+catch {
+  // There was an error in the operation
 }
 ```
 
@@ -163,12 +179,17 @@ db.operation { (context, save) -> Void in
 In a similar way you can use the `remove()` method from the context passing the objects you want to remove from the database:
 
 ```swift
-db.operation { (context, save) -> Void in
-  let john: User? = try! context.request(User.self).filteredWith("id", equalTo: "1234").fetch().first
-  if let john = john {
-    try! context.remove([john])
-    save()
+do {
+  db.operation { (context, save) -> Void in
+    let john: User? = try! context.request(User.self).filteredWith("id", equalTo: "1234").fetch().first
+    if let john = john {
+      try! context.remove([john])
+      save()
+    }
   }
+}
+catch {
+  // There was an error in the operation
 }
 ```
 
@@ -176,13 +197,13 @@ db.operation { (context, save) -> Void in
 `Storage`s offer a reactive API that you can use if your app follows the Reactive paradigm. SugarRecord supports the two main Reactive libraries for Swift, [ReactiveCocoa](https://github.com/reactivecocoa/reactivecocoa) and [RxSwift](https://github.com/ReactiveX/RxSwift). Methods prefixes are `rac_` and `rx_` respectively:
 
 ```swift
-// Executes the operation and notifies the completion/error to the producer.
-func rac_operation(operation: (context: Context, save: Saver) -> Void) -> SignalProducer<Void, NoError>
-func rx_operation(operation: (context: Context, save: Saver) -> Void) -> Observable<Void>
+// Executes the operation and notifies the completion/error to the producer. Optionally returns an object from the operation (such as the id of a newly created object)
+func rac_operation<T>(operation: (context: Context, save: Saver) -> T) -> SignalProducer<T, NoError>
+func rx_operation<T>(operation: (context: Context, save: Saver) -> T) -> Observable<T>
 
-// Executes the operation in background and notifies the completion/error to the producer.
-func rac_backgroundOperation(operation: (context: Context, save: Saver) -> Void) -> SignalProducer<Void, NoError>
-func rx_backgroundOperation(operation: (context: Context, save: Saver) -> Void) -> Observable<Void>
+// Executes the operation in background and notifies the completion/error to the producer. Optionally returns an object from the operation (such as the id of a newly created object)
+func rac_backgroundOperation<T>(operation: (context: Context, save: Saver) -> T) -> SignalProducer<T, NoError>
+func rx_backgroundOperation<T>(operation: (context: Context, save: Saver) -> T) -> Observable<T>
 
 // Executes a fetch in a background thread mapping them into thread safe plain entities forwarding the results to the producer.
 func rac_backgroundFetch<T, U>(request: Request<T>, mapper: T -> U) -> SignalProducer<[U], Error>
@@ -196,6 +217,39 @@ func rx_fetch<T>(request: Request<T>) -> Observable<[T]>
 
 <br>
 > This is the first approach of SugarRecord for the  interface. We'll improve it with the feedback you can report and according to the use of the framework. Do not hesitate to reach us with your proposals. Everything that has to be with making the use of CoreData/Realm easier, funnier, and enjoyable is welcome! :tada:
+
+### RequestObservable
+
+SugarRecord provides a component, `RequestObservable` that allows observing changes in the DataBase. It uses Realm notifications and CoreData `NSFetchedResultsController` under the hood.
+
+**Observing**
+
+```swift
+class Presenter {
+  var observable: RequestObservable<Track>!
+
+  func setup() {
+      let request: Request<Track> = Request<Track>().filteredWith("artist", equalTo: "pedro")
+      self.observable = storage.instance.observable(request)
+      self.observable.observe { changes in
+        case .Initial(let objects):
+          print("\(objects.count) objects in the database")
+        case .Update(let deletions, let insertions, let modifications):
+          print("\(deletions.count) deleted | \(insertions.count) inserted | \(modifications.count) modified")
+        case .Error(let error):
+          print("Something went wrong")
+      }
+  }
+}
+```
+> **Retain**: RequestObservable must be retained during the observation lifecycle. When the `RequestObservable` instance gets released from memory it stops observing changes from your storage.
+
+> **NOTE**: This was renamed from Observable -> RequestObservable so we are no longer stomping on the RxSwift Observable namespace.
+
+> **Reactive**: Observables can be also observed as Reactive sources using `rx_observe` or `rac_observe`.
+In this case there's no need to retain the `RequestObservable` but dispose it whenever you're not interested anymore in observing changes.
+
+**:warning: `RequestObservable` is not available for CoreData + OSX**
 
 ### Example project
 
@@ -218,7 +272,7 @@ If you want to communicate any issue, suggestion or even make a contribution, yo
 - If you want to contribute, submit a pull request, and remember the rules to follow related with the code style, testing, ...
 
 ## Contribution
-- You'll find more details about contribution with SugarRecord in [contribution](CONTRIBUTION.md)
+- You'll find more details about contributing to SugarRecord in [contributing](CONTRIBUTING.md)
 
 ## Resources
 - [Quick](https://github.com/quick/quick)

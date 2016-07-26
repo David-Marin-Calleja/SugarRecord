@@ -4,5 +4,7 @@ public enum Error: ErrorType {
     case WriteError
     case InvalidType
     case FetchError(ErrorType)
-    case Nothing
+    case Store(ErrorType)
+    case InvalidOperation(String)
+    case Unknown
 }

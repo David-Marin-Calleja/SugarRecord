@@ -1,121 +1,118 @@
 import Foundation
 import CoreData
 
-/// Default CoreData storage with an stack based on a private root context that is connected to the persistent store coordinator. A main context connected to that private root context is using for main thread operations such as data fetching, and then high load operations are executed in temporary private context that has the root context as parent context. Operations persisted in these contexts are automatically merged into the main context in order to reflect the changes in UI components.
 public class CoreDataDefaultStorage: Storage {
-    
     
     // MARK: - Attributes
     
-    /// CoreData store
     internal let store: CoreData.Store
-    
-    /// CoreData managed object model
     internal var objectModel: NSManagedObjectModel! = nil
-    
-    /// CoreData persistent store
     internal var persistentStore: NSPersistentStore! = nil
-    
-    /// CoreData persistent store coordinator
     internal var persistentStoreCoordinator: NSPersistentStoreCoordinator! = nil
-    
-    /// CoreData root saving context
     internal var rootSavingContext: NSManagedObjectContext! = nil
+
     
     // MARK: - Storage conformance
     
-    /// Storage description. This description property is defined in the CustomStringLiteralConvertible protocol
     public var description: String {
         get {
             return "CoreDataDefaultStorage"
         }
     }
     
-    /// Storage type
     public var type: StorageType = .CoreData
-    
-    /// Main context. This context is mostly used for querying operations.
-    /// Note: Use this context with the main thread only
     public var mainContext: Context!
-
-    /// Save context. This context is mostly used for save operations
+    private var _saveContext: Context!
     public var saveContext: Context! {
-        get {
-            let _context = cdContext(withParent: .Context(self.rootSavingContext), concurrencyType: .PrivateQueueConcurrencyType, inMemory: false)
-            _context.observe(inMainThread: true) { [weak self] (notification) -> Void in
-                (self?.mainContext as? NSManagedObjectContext)?.mergeChangesFromContextDidSaveNotification(notification)
-            }
-            return _context
+        if let context = self._saveContext {
+            return context
         }
+        let _context = cdContext(withParent: .Context(self.rootSavingContext), concurrencyType: .PrivateQueueConcurrencyType, inMemory: false)
+        _context.observe(inMainThread: true) { [weak self] (notification) -> Void in
+            (self?.mainContext as? NSManagedObjectContext)?.mergeChangesFromContextDidSaveNotification(notification)
+        }
+        self._saveContext = _context
+        return _context
     }
-    
-    /// Memory context. This context is mostly used for testing (not persisted)
     public var memoryContext: Context! {
-        get {
-            let _context =  cdContext(withParent: .Context(self.rootSavingContext), concurrencyType: .PrivateQueueConcurrencyType, inMemory: true)
-            return _context
-        }
+        let _context =  cdContext(withParent: .Context(self.rootSavingContext), concurrencyType: .PrivateQueueConcurrencyType, inMemory: true)
+        return _context
     }
     
-    /**
-     Executes the provided operation.
-     
-     - parameter operation: Operation to be executed.
-     */
-    public func operation(operation: (context: Context, save: () -> Void) -> Void) {
+    public func operation<T>(operation: (context: Context, save: () -> Void) throws -> T) throws -> T {
         let context: NSManagedObjectContext = self.saveContext as! NSManagedObjectContext
+        var _error: ErrorType!
+        
+        var returnedObject: T!
         context.performBlockAndWait {
-            var save: Bool = false
-            operation(context: context, save: { save = true })
-            if save {
-                _ = try? context.save()
-                if self.rootSavingContext.hasChanges {
-                    _ = try? self.rootSavingContext.save()
-                }
+            do {
+                returnedObject = try operation(context: context, save: { () -> Void in
+                    do {
+                        try context.save()
+                    }
+                    catch {
+                        _error = error
+                    }
+                    if self.rootSavingContext.hasChanges {
+                        self.rootSavingContext.performBlockAndWait({
+                            do {
+                                try self.rootSavingContext.save()
+                            }
+                            catch {
+                                _error = error
+                            }
+                        })
+                    }
+                })
+            } catch {
+                _error = error
             }
         }
+        if let error = _error {
+            throw error
+        }
+        
+        return returnedObject
     }
-    
-    /**
-     It removes the store. If you use this method the CoreData make sure you initialize everything again before starting using CoreData again
-     
-     - throws: NSError returned by NSFileManager when the removal operation fails
-     */
+
     public func removeStore() throws {
         try NSFileManager.defaultManager().removeItemAtURL(store.path())
+        _ = try? NSFileManager.defaultManager().removeItemAtPath("\(store.path().absoluteString)-shm")
+        _ = try? NSFileManager.defaultManager().removeItemAtPath("\(store.path().absoluteString)-wal")
+
     }
     
     
-    // MARK: - Constructors
+    // MARK: - Init
     
-    /**
-    Initializes the CoreDataDefaultStorage
+    public convenience init(store: CoreData.Store, model: CoreData.ObjectModel, migrate: Bool = true) throws {
+        try self.init(store: store, model: model, migrate: migrate, versionController: VersionController())
+    }
     
-    - parameter store:   Entity that represents a CoreData store
-    - parameter model:   Entity that represetns the CoreData object model that contains the database schema
-    - parameter migrate: True if the store has to be migrated when it's initialized
-    
-    - returns: initialized CoreData default storage
-    */
-    public init(store: CoreData.Store, model: CoreData.ObjectModel, migrate: Bool = true) throws {
+    internal init(store: CoreData.Store, model: CoreData.ObjectModel, migrate: Bool = true, versionController: VersionController) throws {
         self.store   = store
         self.objectModel = model.model()!
         self.persistentStoreCoordinator = NSPersistentStoreCoordinator(managedObjectModel: objectModel)
         self.persistentStore = try cdInitializeStore(store, storeCoordinator: persistentStoreCoordinator, migrate: migrate)
         self.rootSavingContext = cdContext(withParent: .Coordinator(self.persistentStoreCoordinator), concurrencyType: .PrivateQueueConcurrencyType, inMemory: false)
         self.mainContext = cdContext(withParent: .Context(self.rootSavingContext), concurrencyType: .MainQueueConcurrencyType, inMemory: false)
+        versionController.check()
     }
+    
+    
+    // MARK: - Public
+    
+#if os(iOS) || os(tvOS) || os(watchOS)
+    public func observable<T: NSManagedObject where T:Equatable>(request: Request<T>) -> RequestObservable<T> {
+        return CoreDataObservable(request: request, context: self.mainContext as! NSManagedObjectContext)
+    }
+#endif
+    
 }
 
 
-/**
- It creates and returns a context with the given concurrency type and parent
- 
- - parameter parent:          context parent
- - parameter concurrencyType: context concurrency type
- 
- - returns: initialized managed object context
- */
+// MARK: - Internal
+
 internal func cdContext(withParent parent: CoreData.ContextParent?, concurrencyType: NSManagedObjectContextConcurrencyType, inMemory: Bool) -> NSManagedObjectContext {
     var context: NSManagedObjectContext?
     if inMemory {
@@ -136,49 +133,18 @@ internal func cdContext(withParent parent: CoreData.ContextParent?, concurrencyT
     return context!
 }
 
-
-/**
- Initializes the CoreData store and returns it
- 
- - parameter store:            store information
- - parameter storeCoordinator: persistent store coordinator
- - parameter migrate:          true if the schema has to be migrated
- 
- - throws: error if the store cannot be initialized
- 
- - returns: initialized persistent store
- */
 internal func cdInitializeStore(store: CoreData.Store, storeCoordinator: NSPersistentStoreCoordinator, migrate: Bool) throws -> NSPersistentStore {
     try cdCreateStoreParentPathIfNeeded(store)
     let options = migrate ? CoreData.Options.Migration : CoreData.Options.Default
     return try cdAddPersistentStore(store, storeCoordinator: storeCoordinator, options: options.dict())
 }
 
-
-/**
- It creates the parent directory for the store if needed
-
- - parameter store: store
- 
- - throws: error if something went wrong
- */
 internal func cdCreateStoreParentPathIfNeeded(store: CoreData.Store) throws {
     if let databaseParentPath = store.path().URLByDeletingLastPathComponent  {
         try NSFileManager.defaultManager().createDirectoryAtURL(databaseParentPath, withIntermediateDirectories: true, attributes: nil)
     }
 }
 
-/**
- Creates a NSpersistentStore
- 
- - parameter store:            store information
- - parameter storeCoordinator: persistent store coordinator
- - parameter options:          store options
- 
- - throws: an error if the store cannot be added co the coordinator
- 
- - returns: persistent store
- */
 internal func cdAddPersistentStore(store: CoreData.Store, storeCoordinator: NSPersistentStoreCoordinator, options: [NSObject: AnyObject]) throws -> NSPersistentStore {
     
     var addStore: ((store: CoreData.Store,  storeCoordinator: NSPersistentStoreCoordinator, options: [NSObject: AnyObject], cleanAndRetryIfMigrationFails: Bool) throws -> NSPersistentStore)?
@@ -211,13 +177,6 @@ internal func cdAddPersistentStore(store: CoreData.Store, storeCoordinator: NSPe
     return try addStore!(store: store, storeCoordinator: storeCoordinator, options: options, cleanAndRetryIfMigrationFails: true)
 }
 
-/**
- Cleans store files if the migration fails (shm, wal, database)
- 
- - parameter store: store information
- 
- - throws: error if the files cannot be removed
- */
 internal func cdCleanStoreFilesAfterFailedMigration(store store: CoreData.Store) throws {
     let rawUrl: String = store.path().absoluteString
     let shmSidecar: NSURL = NSURL(string: rawUrl.stringByAppendingString("-shm"))!

@@ -1,16 +1,18 @@
 import Foundation
 import UIKit
 import SugarRecord
-import RealmSwift
+import CoreData
+import RxSwift
 
-class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class CoreDataObservableView: UIViewController, UITableViewDelegate, UITableViewDataSource {
     
     // MARK: - Attributes
-    lazy var db: RealmDefaultStorage = {
-        var configuration = Realm.Configuration()
-        configuration.path = databasePath("realm-basic")
-        let _storage = RealmDefaultStorage(configuration: configuration)
-        return _storage
+    lazy var db: CoreDataDefaultStorage = {
+        let store = CoreData.Store.Named("cd_basic")
+        let bundle = NSBundle(forClass: CoreDataBasicView.classForCoder())
+        let model = CoreData.ObjectModel.Merged([bundle])
+        let defaultStorage = try! CoreDataDefaultStorage(store: store, model: model)
+        return defaultStorage
     }()
     lazy var tableView: UITableView = {
         let _tableView = UITableView(frame: CGRectZero, style: UITableViewStyle.Plain)
@@ -20,7 +22,8 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
         _tableView.registerClass(UITableViewCell.classForCoder(), forCellReuseIdentifier: "default-cell")
         return _tableView
     }()
-    var entities: [RealmBasicEntity] = [] {
+    var disposeBag: DisposeBag = DisposeBag()
+    var entities: [CoreDataBasicEntity] = [] {
         didSet {
             self.tableView.reloadData()
         }
@@ -31,11 +34,15 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
     
     init() {
         super.init(nibName: nil, bundle: nil)
-        self.title = "Realm Basic"
+        self.title = "CoreData Observable"
     }
-
+    
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    deinit {
+        print("🚀🚀🚀 Deallocating \(self) 🚀🚀🚀")
     }
     
     
@@ -44,7 +51,6 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
     override func viewDidLoad() {
         super.viewDidLoad()
         setup()
-        updateData()
     }
     
     
@@ -54,6 +60,7 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
         setupView()
         setupNavigationItem()
         setupTableView()
+        setupObservable()
     }
     
     private func setupView() {
@@ -61,7 +68,7 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
     
     private func setupNavigationItem() {
-        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Add, target: self, action: "userDidSelectAdd:")
+        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Add, target: self, action: #selector(CoreDataBasicView.userDidSelectAdd(_:)))
     }
     
     private func setupTableView() {
@@ -69,6 +76,26 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
         self.tableView.snp_makeConstraints { (make) -> Void in
             make.edges.equalTo(self.view)
         }
+    }
+    
+    private func setupObservable() {
+        db.observable(Request<BasicObject>().sortedWith("date", ascending: true))
+            .rx_observe()
+            .subscribeNext { [weak self] (change) in
+                switch change {
+                case .Initial(let entities):
+                    self?.entities = entities.map(CoreDataBasicEntity.init)
+                    break
+                case .Update(let deletions, let insertions, let modifications):
+                    modifications.forEach { [weak self] in self?.entities[$0.0] = CoreDataBasicEntity(object: $0.1) }
+                    insertions.forEach { [weak self] in self?.entities.insert(CoreDataBasicEntity(object: $0.1), atIndex: $0.0) }
+                    deletions.forEach({ [weak self] in self?.entities.removeAtIndex($0) })
+                    break
+                default:
+                    break
+                }
+            }
+            .addDisposableTo(self.disposeBag)
     }
     
     
@@ -91,12 +118,11 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
     func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
         if editingStyle == UITableViewCellEditingStyle.Delete {
             let name = entities[indexPath.row].name
-            db.operation({ (context, save) -> Void in
-                guard let obj = try! context.request(RealmBasicObject.self).filteredWith("name", equalTo: name).fetch().first else { return }
+            try! db.operation({ (context, save) -> Void in
+                guard let obj = try! context.request(BasicObject.self).filteredWith("name", equalTo: name).fetch().first else { return }
                 _ = try? context.remove(obj)
                 save()
             })
-            updateData()
         }
     }
     
@@ -104,37 +130,13 @@ class RealmBasicView: UIViewController, UITableViewDelegate, UITableViewDataSour
     // MARK: - Actions
     
     func userDidSelectAdd(sender: AnyObject!) {
-        db.operation { (context, save) -> Void in
-            let _object: RealmBasicObject = try! context.new()
+        try! db.operation { (context, save) -> Void in
+            let _object: BasicObject = try! context.new()
             _object.date = NSDate()
             _object.name = randomStringWithLength(10) as String
             try! context.insert(_object)
             save()
         }
-        updateData()
     }
     
-    
-    // MARK: - Private
-    
-    private func updateData() {
-        self.entities = try! db.fetch(Request<RealmBasicObject>()).map(RealmBasicEntity.init)
-    }
-}
-
-class RealmBasicObject: Object {
-    dynamic var date: NSDate = NSDate()
-    dynamic var name: String = ""
-}
-
-class RealmBasicEntity {
-    let dateString: String
-    let name: String
-    init(object: RealmBasicObject) {
-        let dateFormater = NSDateFormatter()
-        dateFormater.timeStyle = NSDateFormatterStyle.ShortStyle
-        dateFormater.dateStyle = NSDateFormatterStyle.ShortStyle
-        self.dateString = dateFormater.stringFromDate(object.date)
-        self.name = object.name
-    }
 }

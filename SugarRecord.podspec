@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "SugarRecord"
-  s.version          = "2.2.2"
+  s.version          = "2.2.9"
   s.summary          = "CoreData wrapper written on Swift"
   s.homepage         = "https://github.com/pepibumur/SugarRecord"
   s.license          = 'MIT'
@@ -9,23 +9,21 @@ Pod::Spec.new do |s|
   s.social_media_url = 'https://twitter.com/pepibumur'
   s.requires_arc = true
 
-  s.default_subspecs = 'Realm', 'CoreData'
-
   s.ios.deployment_target = "8.0"
   s.osx.deployment_target = "10.10"
 
   rx_dependencies = lambda do |spec|
-    spec.dependency 'RxSwift', '~> 2.1'
-    spec.dependency 'RxCocoa', '~> 2.1'
-    spec.dependency 'RxBlocking', '~> 2.1'
+    spec.dependency 'RxSwift', '~> 2.5.0'
+    spec.dependency 'RxCocoa', '~> 2.5.0'
+    spec.dependency 'RxBlocking', '~> 2.5.0'
   end
 
   rac_dependencies = lambda do |spec|
-    spec.dependency "ReactiveCocoa", "4.0.1"
+    spec.dependency "ReactiveCocoa", "4.1.0"
   end
 
   realm_dependencies = lambda do |spec|
-    spec.dependency "RealmSwift", "~> 0.98"
+    spec.dependency "RealmSwift", "~> 1.0.1"
   end
 
   coredata_dependencies = lambda do |spec|
@@ -33,7 +31,7 @@ Pod::Spec.new do |s|
   end
 
   foundation_dependencies = lambda do |spec|
-    spec.dependency "Result", "~> 1.0"
+    spec.dependency "Result", "~> 2.0"
   end
 
   all_platforms = lambda do |spec|
@@ -47,9 +45,8 @@ Pod::Spec.new do |s|
 
   s.subspec "CoreData" do  |spec|
     source_files = ['SugarRecord/Source/Foundation/**/*.{swift}', 'SugarRecord/Source/CoreData/**/*.{swift}']
-    excluded_files = ['SugarRecord/Source/CoreData/Reactive/**/*.{swift}']
     spec.source_files = source_files
-    spec.exclude_files = excluded_files + excluded_icloud_files
+    spec.exclude_files =  excluded_icloud_files
     coredata_dependencies.call(spec)
     foundation_dependencies.call(spec)
     all_platforms.call(spec)
@@ -57,9 +54,7 @@ Pod::Spec.new do |s|
 
   s.subspec "CoreData+iCloud" do  |spec|
     source_files = ['SugarRecord/Source/Foundation/**/*.{swift}', 'SugarRecord/Source/CoreData/**/*.{swift}']
-    excluded_files = ['SugarRecord/Source/CoreData/Reactive/**/*.{swift}']
     spec.source_files = source_files
-    spec.exclude_files = excluded_files
     coredata_dependencies.call(spec)
     foundation_dependencies.call(spec)
   end
@@ -109,7 +104,6 @@ Pod::Spec.new do |s|
 
   s.subspec "Realm" do  |spec|
     spec.source_files = ['SugarRecord/Source/Foundation/**/*.{swift}', 'SugarRecord/Source/Realm/**/*.{swift}']
-    spec.exclude_files = ['SugarRecord/Source/Realm/Reactive/**/*.{swift}']
     realm_dependencies.call(spec)
     foundation_dependencies.call(spec)
   end

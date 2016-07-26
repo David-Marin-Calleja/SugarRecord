@@ -2,54 +2,66 @@ import Foundation
 import ReactiveCocoa
 import Result
 
-public extension ReactiveStorage where Self: Storage {
+public extension Storage {
     
     // MARK: - Operation
     
-    /**
-    Executes the given operation in the provided Queue.
-    
-    - parameter queue:     Queue where the operation will be executed.
-    - parameter operation: Operation to be executed. Context must be used to save your changes in and the save() closure must be called in order to get the changes persisted in the storage.
-    
-    - returns: SignalProducer that executes the action.
-    */
-    func rac_operation(op: (context: Context, save: Saver) -> Void) -> SignalProducer<Void, NoError> {
+    func rac_operation<T>(op: (context: Context, save: () -> Void) throws -> T) -> SignalProducer<T, Error> {
         return SignalProducer { (observer, disposable) in
-            self.operation { (context, saver) in
-                op(context: context, save: saver)
+            do {
+                let returnedObject = try self.operation { (context, saver) throws in
+                    try op(context: context, save: {
+                        saver()
+                    })
+                }
+                
+                observer.sendNext(returnedObject)
                 observer.sendCompleted()
+            }
+            catch {
+                observer.sendFailed(Error.Store(error))
             }
         }
     }
     
-    /**
-     Executes the given operation in a background thread.
-     
-     - parameter operation: Operation to be executed. Context must be used to save your changes in and the save() closure must be called in order to get the changes persisted in the storage.
-     
-     - returns: SignalProducer that executes the action.
-     */
-    func rac_backgroundOperation(op: (context: Context, save: Saver) -> Void) -> SignalProducer<Void, NoError> {
+    func rac_operation<T>(op: (context: Context) throws -> T) -> SignalProducer<T, Error> {
+        return self.rac_operation { (context, saver) throws in
+            let returnedObject = try op(context: context)
+            saver()
+            return returnedObject
+        }
+    }
+    
+    func rac_backgroundOperation<T>(op: (context: Context, save: () -> Void) throws -> T) -> SignalProducer<T, Error> {
         return SignalProducer { (observer, disposable) in
             let priority = DISPATCH_QUEUE_PRIORITY_DEFAULT
             dispatch_async(dispatch_get_global_queue(priority, 0)) {
-                self.operation { (context, saver) in
-                    op(context: context, save: saver)
+                do {
+                    let returnedObject = try self.operation { (context, saver) throws in
+                        try op(context: context, save: {
+                            saver()
+                        })
+                    }
+                    observer.sendNext(returnedObject)
                     observer.sendCompleted()
+                }
+                catch {
+                    observer.sendFailed(Error.Store(error))
                 }
             }
         }
     }
     
-    /**
-     Executes a background fetch mapping the response into a PONSO thread safe entity.
-     
-     - parameter request: Request to be executed.
-     - parameter mapper:  Mapper.
-     
-     - returns: SignalProducer that executes the action.
-     */
+    func rac_backgroundOperation<T>(op: (context: Context) throws -> T) -> SignalProducer<T, Error> {
+        return rac_backgroundOperation { (context, save) throws in
+            let returnedObject = try op(context: context)
+            save()
+            
+            return returnedObject
+        }
+    }
+
+    
     func rac_backgroundFetch<T: Entity, U>(request: Request<T>, mapper: T -> U) -> SignalProducer<[U], Error> {
         let producer: SignalProducer<[T], Error> = SignalProducer { (observer, disposable) in
             let priority = DISPATCH_QUEUE_PRIORITY_DEFAULT
@@ -70,16 +82,9 @@ public extension ReactiveStorage where Self: Storage {
                 }
             }
         }
-        return producer.map({$0.map(mapper)}).observeOn(UIScheduler())
+        return producer.map { $0.map(mapper) }.observeOn(UIScheduler())
     }
     
-    /**
-     Executes a request.
-     
-     - parameter request: Request to be executed.
-     
-     - returns: SignalProducer that executes the action.
-     */
     func rac_fetch<T: Entity>(request: Request<T>) -> SignalProducer<[T], Error> {
         return SignalProducer { (observer, disposable) in
             do {
