@@ -6,7 +6,7 @@ import CoreData
 extension NSManagedObject {
     
     public class var entityName: String {
-        return NSStringFromClass(self).componentsSeparatedByString(".").last!
+        return NSStringFromClass(self).components(separatedBy: ".").last!
     }
     
 }
@@ -22,8 +22,8 @@ extension NSManagedObject: Entity {}
 extension NSManagedObject {
     
     
-    static func request<T: Entity>(requestable: Requestable) -> Request<T> {
-        return Request(requestable)
+    static func request<T: Entity>(requestable: Requestable) -> FetchRequest<T> {
+        return FetchRequest(requestable)
     }
 
 }

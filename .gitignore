@@ -79,6 +79,8 @@ DerivedData
 !default.perspectivev3
 xcuserdata
 
+Examples/Pods
+
 ## Other
 *.xccheckout
 *.moved-aside
@@ -149,7 +151,7 @@ xcuserdata
 # you should judge for yourself, the pros and cons are mentioned at:
 # http://guides.cocoapods.org/using/using-cocoapods.html#should-i-ignore-the-pods-directory-in-source-control
 #
-# Pods/
+Pods/
 
 # Carthage
 #
@@ -212,3 +214,5 @@ Carthage/Build
 # Carthage - A simple, decentralized dependency manager for Cocoa
 Carthage.checkout
 Carthage.build
+
+*.zip

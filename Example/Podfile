@@ -1,9 +1,20 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '8.0'
-# Uncomment this line if you're using Swift
 use_frameworks!
 
-target 'SugarRecordExamples' do
-pod 'SnapKit'
-pod 'SugarRecord', :path => "../"
+target 'SugarRecord_Example' do
+  pod 'SnapKit'
+  pod 'SugarRecord', :path => "../"
+  pod 'SugarRecord/CoreData', :path => "../"
+  pod 'SugarRecord/CoreData+iCloud', :path => "../"
+  pod 'SugarRecord/Realm', :path => "../"
+end
+
+target 'SugarRecord_Tests' do
+  pod 'SugarRecord', :path => "../"
+  pod 'SugarRecord/CoreData', :path => "../"
+  pod 'SugarRecord/CoreData+iCloud', :path => "../"
+  pod 'SugarRecord/Realm', :path => "../"
+  pod 'Quick', "~> 0.10"
+  pod 'Nimble', '~> 5.0'
+  pod "OHHTTPStubs"
+  pod 'OHHTTPStubs/Swift'
 end

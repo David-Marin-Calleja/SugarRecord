@@ -1,20 +1,24 @@
 import Foundation
 
-public struct Request<T: Entity>: Equatable {
+public struct FetchRequest<T: Entity>: Equatable {
     
     // MARK: - Attributes
     
     public let sortDescriptor: NSSortDescriptor?
     public let predicate: NSPredicate?
+    public let fetchOffset: Int
+    public let fetchLimit: Int
     let context: Context?
     
     
     // MARK: - Init
     
-    public init(_ requestable: Requestable? = nil, sortDescriptor: NSSortDescriptor? = nil, predicate: NSPredicate? = nil) {
+    public init(_ requestable: Requestable? = nil, sortDescriptor: NSSortDescriptor? = nil, predicate: NSPredicate? = nil, fetchOffset: Int = 0, fetchLimit: Int = 0) {
         self.context = requestable?.requestContext()
         self.sortDescriptor = sortDescriptor
         self.predicate = predicate
+        self.fetchOffset = fetchOffset
+        self.fetchLimit = fetchLimit
     }
     
     
@@ -24,39 +28,50 @@ public struct Request<T: Entity>: Equatable {
         return try context!.fetch(self)
     }
     
-    public func fetch(requestable: Requestable) throws -> [T] {
+    public func fetch(_ requestable: Requestable) throws -> [T] {
         return try requestable.requestContext().fetch(self)
     }
     
     
     // MARK: - Public Builder Methods
     
-    public func filteredWith(predicate predicate: NSPredicate) -> Request<T> {
+    public func filtered(with predicate: NSPredicate) -> FetchRequest<T> {
         return self
             .request(withPredicate: predicate)
     }
     
-    public func filteredWith(key: String, equalTo value: String) -> Request<T> {
+    public func filtered(with key: String, equalTo value: String) -> FetchRequest<T> {
         return self
             .request(withPredicate: NSPredicate(format: "\(key) == %@", value))
     }
     
-    public func sortedWith(sortDescriptor sortDescriptor: NSSortDescriptor) -> Request<T> {
+    public func filtered(with key: String, in value: [String]) -> FetchRequest<T> {
+        return self
+            .request(withPredicate: NSPredicate(format: "\(key) IN %@", value))
+    }
+    
+    public func filtered(with key: String, notIn value: [String]) -> FetchRequest<T> {
+        return self
+            .request(withPredicate: NSPredicate(format: "NOT (\(key) IN %@)", value))
+    }
+
+    
+    public func sorted(with sortDescriptor: NSSortDescriptor) -> FetchRequest<T> {
         return self
             .request(withSortDescriptor: sortDescriptor)
     }
     
-    public func sortedWith(key: String?, ascending: Bool, comparator cmptr: NSComparator) -> Request<T> {
+    public func sorted(with key: String?, ascending: Bool, comparator cmptr: @escaping Comparator) -> FetchRequest<T> {
         return self
             .request(withSortDescriptor: NSSortDescriptor(key: key, ascending: ascending, comparator: cmptr))
     }
     
-    public func sortedWith(key: String?, ascending: Bool) -> Request<T> {
+    public func sorted(with key: String?, ascending: Bool) -> FetchRequest<T> {
         return self
             .request(withSortDescriptor: NSSortDescriptor(key: key, ascending: ascending))
     }
     
-    public func sortedWith(key: String?, ascending: Bool, selector: Selector) -> Request<T> {
+    public func sorted(with key: String?, ascending: Bool, selector: Selector) -> FetchRequest<T> {
         return self
             .request(withSortDescriptor: NSSortDescriptor(key: key, ascending: ascending, selector: selector))
     }
@@ -64,12 +79,12 @@ public struct Request<T: Entity>: Equatable {
     
     // MARK: - Internal
     
-    func request(withPredicate predicate: NSPredicate) -> Request<T> {
-        return Request<T>(context, sortDescriptor: sortDescriptor, predicate: predicate)
+    func request(withPredicate predicate: NSPredicate) -> FetchRequest<T> {
+        return FetchRequest<T>(context, sortDescriptor: sortDescriptor, predicate: predicate)
     }
     
-    func request(withSortDescriptor sortDescriptor: NSSortDescriptor) -> Request<T> {
-        return Request<T>(context, sortDescriptor: sortDescriptor, predicate: predicate)
+    func request(withSortDescriptor sortDescriptor: NSSortDescriptor) -> FetchRequest<T> {
+        return FetchRequest<T>(context, sortDescriptor: sortDescriptor, predicate: predicate)
     }
     
 }
@@ -77,7 +92,7 @@ public struct Request<T: Entity>: Equatable {
 
 // MARK: - Equatable
 
-public func == <T>(lhs: Request<T>, rhs: Request<T>) -> Bool {
+public func == <T>(lhs: FetchRequest<T>, rhs: FetchRequest<T>) -> Bool {
     return lhs.sortDescriptor == rhs.sortDescriptor &&
     lhs.predicate == rhs.predicate
 }

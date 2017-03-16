@@ -1,3 +1,16 @@
+## Changelog
+
+### 3.0.0-alpha.1
+- Swift 3.0 support.
+- Swift 2.3 support dropped.
+- Carthage support.
+
+### 2.3.0
+- Add Danger.
+- Remove Carthage support.
+- Bump Realm version to 1.0.2.
+- Update Fastlane setup.
+
 ### Version 2.2.7
 - Add Observable feature https://github.com/pepibumur/SugarRecord/pull/243
 - Fix a CoreDataStorage `journal_mode` property not set properly.

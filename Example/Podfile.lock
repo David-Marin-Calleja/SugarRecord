@@ -1,88 +1,65 @@
 PODS:
-  - ReactiveCocoa (4.1.0):
-    - ReactiveCocoa/UI (= 4.1.0)
-    - Result (~> 2.0)
-  - ReactiveCocoa/Core (4.1.0):
-    - ReactiveCocoa/no-arc
-    - Result (~> 2.0)
-  - ReactiveCocoa/no-arc (4.1.0):
-    - Result (~> 2.0)
-  - ReactiveCocoa/UI (4.1.0):
-    - ReactiveCocoa/Core
-    - Result (~> 2.0)
-  - Realm (0.102.1):
-    - Realm/Headers (= 0.102.1)
-  - Realm/Headers (0.102.1)
-  - RealmSwift (0.102.1):
-    - Realm (= 0.102.1)
-  - Result (2.0.0)
-  - RxBlocking (2.5.0):
-    - RxSwift (~> 2.5)
-  - RxCocoa (2.5.0):
-    - RxSwift (~> 2.5)
-  - RxSwift (2.5.0)
-  - SnapKit (0.18.0)
-  - SugarRecord (2.2.7):
-    - SugarRecord/CoreData (= 2.2.7)
-    - SugarRecord/CoreData+iCloud (= 2.2.7)
-    - SugarRecord/CoreData+RAC (= 2.2.7)
-    - SugarRecord/CoreData+RAC+iCloud (= 2.2.7)
-    - SugarRecord/CoreData+RX (= 2.2.7)
-    - SugarRecord/CoreData+RX+iCloud (= 2.2.7)
-    - SugarRecord/Realm (= 2.2.7)
-    - SugarRecord/Realm+RAC (= 2.2.7)
-    - SugarRecord/Realm+RX (= 2.2.7)
-  - SugarRecord/CoreData (2.2.7):
-    - Result (~> 2.0)
-  - SugarRecord/CoreData+iCloud (2.2.7):
-    - Result (~> 2.0)
-  - SugarRecord/CoreData+RAC (2.2.7):
-    - ReactiveCocoa (= 4.1.0)
-    - Result (~> 2.0)
-  - SugarRecord/CoreData+RAC+iCloud (2.2.7):
-    - ReactiveCocoa (= 4.1.0)
-    - Result (~> 2.0)
-  - SugarRecord/CoreData+RX (2.2.7):
-    - Result (~> 2.0)
-    - RxBlocking (~> 2.5.0)
-    - RxCocoa (~> 2.5.0)
-    - RxSwift (~> 2.5.0)
-  - SugarRecord/CoreData+RX+iCloud (2.2.7):
-    - Result (~> 2.0)
-    - RxBlocking (~> 2.5.0)
-    - RxCocoa (~> 2.5.0)
-    - RxSwift (~> 2.5.0)
-  - SugarRecord/Realm (2.2.7):
-    - RealmSwift (~> 0.102.1)
-    - Result (~> 2.0)
-  - SugarRecord/Realm+RAC (2.2.7):
-    - ReactiveCocoa (= 4.1.0)
-    - RealmSwift (~> 0.102.1)
-    - Result (~> 2.0)
-  - SugarRecord/Realm+RX (2.2.7):
-    - RealmSwift (~> 0.102.1)
-    - Result (~> 2.0)
-    - RxBlocking (~> 2.5.0)
-    - RxCocoa (~> 2.5.0)
-    - RxSwift (~> 2.5.0)
+  - Nimble (5.0.0)
+  - OHHTTPStubs (5.2.1):
+    - OHHTTPStubs/Default (= 5.2.1)
+  - OHHTTPStubs/Core (5.2.1)
+  - OHHTTPStubs/Default (5.2.1):
+    - OHHTTPStubs/Core
+    - OHHTTPStubs/JSON
+    - OHHTTPStubs/NSURLSession
+    - OHHTTPStubs/OHPathHelpers
+  - OHHTTPStubs/JSON (5.2.1):
+    - OHHTTPStubs/Core
+  - OHHTTPStubs/NSURLSession (5.2.1):
+    - OHHTTPStubs/Core
+  - OHHTTPStubs/OHPathHelpers (5.2.1)
+  - OHHTTPStubs/Swift (5.2.1):
+    - OHHTTPStubs/Core
+  - Quick (0.10.0)
+  - Realm (1.1.0):
+    - Realm/Headers (= 1.1.0)
+  - Realm/Headers (1.1.0)
+  - RealmSwift (1.1.0):
+    - Realm (= 1.1.0)
+  - Result (3.0.0)
+  - SnapKit (3.0.1)
+  - SugarRecord (3.0.0-alpha.2):
+    - SugarRecord/CoreData (= 3.0.0-alpha.2)
+    - SugarRecord/CoreData+iCloud (= 3.0.0-alpha.2)
+    - SugarRecord/Realm (= 3.0.0-alpha.2)
+  - SugarRecord/CoreData (3.0.0-alpha.2):
+    - Result (~> 3.0)
+  - SugarRecord/CoreData+iCloud (3.0.0-alpha.2):
+    - Result (~> 3.0)
+  - SugarRecord/Realm (3.0.0-alpha.2):
+    - RealmSwift (~> 1.1)
+    - Result (~> 3.0)
 
 DEPENDENCIES:
+  - Nimble (~> 5.0)
+  - OHHTTPStubs
+  - OHHTTPStubs/Swift
+  - Quick (~> 0.10)
   - SnapKit
   - SugarRecord (from `../`)
+  - SugarRecord/CoreData (from `../`)
+  - SugarRecord/CoreData+iCloud (from `../`)
+  - SugarRecord/Realm (from `../`)
 
 EXTERNAL SOURCES:
   SugarRecord:
     :path: "../"
 
 SPEC CHECKSUMS:
-  ReactiveCocoa: d70004d7a366a7b8e87e60ce2347182c77701949
-  Realm: 5254be610db3e5024879684717bf038990bb59ec
-  RealmSwift: 3e24e6bcf56d98ccc134f4909e00839b81a659af
-  Result: 9e75e1111c774c6ac594e14907b15057053a7959
-  RxBlocking: 595d9ab56dde6b00beaa5aba40e95b150d2135f1
-  RxCocoa: e1b1562e57a554d0fb2aabf9d71b637f177257c7
-  RxSwift: 402b41a50e922a0368fc14cb3bc9f4427920e8ae
-  SnapKit: e1f090a6d47b1dd4bd89b73f72b6746a7835ef3c
-  SugarRecord: 76650922bfb5d6aee7c6318e1d228778581f0f82
+  Nimble: 56fc9f5020effa2206de22c3dd910f4fb011b92f
+  OHHTTPStubs: 3a42f25c00563b71355ac73112ba2324e9e6cef4
+  Quick: 5d290df1c69d5ee2f0729956dcf0fd9a30447eaa
+  Realm: ceecf1a4540c4ce9efe196fe73fa9855bce05bd8
+  RealmSwift: 838058b2db95b12cb86bd0cf209df642c33fb60a
+  Result: 1b3e431f37cbcd3ad89c6aa9ab0ae55515fae3b6
+  SnapKit: f818b8326d45b4e1c777d0ab27b5c0a3624bfdeb
+  SugarRecord: 5d12c70dadef8e036edc795c76e533584b7da453
 
-COCOAPODS: 0.39.0
+PODFILE CHECKSUM: 93e4a0d6049261cca889912a17deebad59571a81
+
+COCOAPODS: 1.1.0.rc.2
